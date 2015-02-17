@@ -7,7 +7,7 @@ namespace rgbd {
     }
 
     void ColorCamera::captureColor(cv::Mat &buffer) {
-        throw new UnsupportedException("ColorCamera.captureColor");
+        throw new UnsupportedException();
     }
 
     ColorCamera::~ColorCamera() {
@@ -15,7 +15,7 @@ namespace rgbd {
     }
 
     cv::Size ColorCamera::colorSize() const {
-        throw new UnsupportedException("ColorCamera.colorSize");
+        throw new UnsupportedException();
     }
 
     void ColorCamera::start() {

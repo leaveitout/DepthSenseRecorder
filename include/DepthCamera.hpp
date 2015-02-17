@@ -22,7 +22,7 @@ namespace rgbd {
     public:
         DepthCamera();
 
-        DepthCamera(const std::shared_ptr<ColorCamera> camera);
+        DepthCamera(const boost::shared_ptr<ColorCamera> camera);
 
         virtual ~DepthCamera();
 
@@ -72,7 +72,7 @@ namespace rgbd {
         virtual void captureColoredPointCloud(ColoredPointCloud::Ptr buffer);
 
     private:
-        std::shared_ptr<ColorCamera> _camera;
+        boost::shared_ptr<ColorCamera> _camera;
     };
 
 }

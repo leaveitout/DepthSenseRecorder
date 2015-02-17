@@ -7,10 +7,8 @@ namespace rgbd {
 
     class IOException : public std::exception {
     public:
-        IOException();
-
-
-
+        IOException(const std::string& cause) :
+                                   std::exception(cause + ": IOException") {}
     };
 
 }

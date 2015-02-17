@@ -3,8 +3,7 @@
 
 #include <list>
 #include <cstdio>
-#include <thread>
-#include <mutex>
+#include <boost/thread/thread.hpp>
 #include <DepthSense.hxx>
 #include "DepthCamera.hpp"
 
@@ -60,13 +59,11 @@ namespace rgbd {
 
         cv::Size _csize;
 
-        std::mutex _dmutex;
+        boost::mutex _dmutex;
 
-        std::mutex _cmutex;
+        boost::mutex _cmutex;
 
-        std::mutex _amutex;
-
-        std::thread t;
+        boost::mutex _amutex;
 
         virtual void onNewDepthSample(DepthNode node, DepthNode::NewSampleReceivedData data);
 

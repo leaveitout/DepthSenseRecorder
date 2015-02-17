@@ -5,7 +5,7 @@ namespace rgbd {
     DepthCamera::DepthCamera() {
     }
 
-    rgbd::DepthCamera::DepthCamera(const std::shared_ptr<ColorCamera> camera) :
+    rgbd::DepthCamera::DepthCamera(const boost::shared_ptr<ColorCamera> camera) :
             _camera(camera) {
     }
 
@@ -16,7 +16,7 @@ namespace rgbd {
         if (_camera)
             return _camera->colorSize();
         else
-            throw new UnsupportedException("colorSize");
+            throw new UnsupportedException();
     }
 
     void DepthCamera::start() {
@@ -30,23 +30,23 @@ namespace rgbd {
     }
 
     cv::Size DepthCamera::depthSize() const {
-        throw new UnsupportedException("depthSize");
+        throw new UnsupportedException();
     }
 
     void DepthCamera::captureDepth(cv::Mat& buffer) {
-        throw new UnsupportedException("captureDepth");
+        throw new UnsupportedException();
     }
 
     void DepthCamera::captureAmplitude(cv::Mat& buffer) {
-        throw new UnsupportedException("captureAmplitude");
+        throw new UnsupportedException();
     }
 
     void DepthCamera::capturePointCloud(PointCloud::Ptr buffer) {
-        throw new UnsupportedException("captureVertex");
+        throw new UnsupportedException();
     }
 
     void DepthCamera::captureColoredPointCloud(ColoredPointCloud::Ptr buffer) {
-        throw new UnsupportedException("captureColoredVertex");
+        throw new UnsupportedException();
     }
 
 }

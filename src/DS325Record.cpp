@@ -4,15 +4,13 @@
 
 #include "DS325.hpp"
 
-
 using namespace rgbd;
-
 
 int main(int argc, char* argv[]) {
 
-    std::shared_ptr<DepthCamera> camera(new DS325(0, FRAME_FORMAT_WXGA_H));
+    boost::shared_ptr<DepthCamera> camera(new DS325(0, FRAME_FORMAT_WXGA_H));
     camera->start();
-//
+
     cv::Mat depth = cv::Mat::zeros(camera->depthSize(), CV_16U);
     cv::Mat amplitude = cv::Mat::zeros(camera->depthSize(), CV_16U);
     cv::Mat color = cv::Mat::zeros(camera->colorSize(), CV_8UC3);
@@ -23,7 +21,6 @@ int main(int argc, char* argv[]) {
 
     ColoredPointCloud::Ptr cloud(new ColoredPointCloud(
             camera->depthSize().width, camera->depthSize().height));
-
 
     while(cv::waitKey(30) != 0x1b) {
 

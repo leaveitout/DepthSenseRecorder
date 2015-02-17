@@ -1,4 +1,4 @@
-#include "DS325.hpp"
+#include <DS325.hpp>
 
 namespace rgbd {
 
@@ -58,15 +58,17 @@ namespace rgbd {
             devices[deviceNo].nodeAddedEvent().connect(this, &DS325::onNodeConnected);
             devices[deviceNo].nodeRemovedEvent().connect(this, &DS325::onNodeDisconnected);
 
-            for (Node node: devices[deviceNo].getNodes()) {
-                if (node.is<DepthNode>() && !_dnode.isSet())
-                    configureDepthNode(node);
-                else if (node.is<ColorNode>() && !_cnode.isSet())
-                    configureColorNode(node);
-                else if (node.is<AudioNode>() && !_anode.isSet())
-                    configureAudioNode(node);
+            const std::vector<Node> &nodes = devices[deviceNo].getNodes();
 
-                _context.registerNode(node);
+            for(std::vector<Node>::size_type i = 0; i < nodes.size(); i++) {
+                if (nodes[i].is<DepthNode>() && !_dnode.isSet())
+                    configureDepthNode(nodes[i]);
+                else if (nodes[i].is<ColorNode>() && !_cnode.isSet())
+                    configureColorNode(nodes[i]);
+                else if (nodes[i].is<AudioNode>() && !_anode.isSet())
+                    configureAudioNode(nodes[i]);
+
+                _context.registerNode(nodes[i]);
             }
 
             std::cout << "DS325: opened" << std::endl;
@@ -77,15 +79,6 @@ namespace rgbd {
     }
 
     DS325::~DS325() {
-
-//        //t.join();
-//        if(t.joinable()) {
-//            std::cout << "t is joinable" << std::endl;
-//            t.join();
-//            std::cout << "t is JOINED!" << std::endl;
-//        }
-//        else
-//            std::cout << "t is NOT joinable." << std::endl;
 
         _context.stopNodes();
 
@@ -99,7 +92,6 @@ namespace rgbd {
         std::cout << "DS325: closed" << std::endl;
 
         _context.quit();
-        t.join();
     }
 
     cv::Size DS325::depthSize() const {
@@ -111,123 +103,112 @@ namespace rgbd {
     }
 
     void DS325::update() {
-        //_context.stopNodes();
         _context.startNodes();
         _context.run();
         _context.stopNodes();
-
     }
 
     void DS325::start() {
-        t = std::thread(&DS325::update, this);
+        boost::thread t(boost::bind(&DS325::update, this));
 
         sleep(3);
-
-        //t.join();
     }
 
     void DS325::captureDepth(cv::Mat& buffer) {
-
-        std::unique_lock<std::mutex> lock(_dmutex, std::try_to_lock);
-
-        if(lock.owns_lock())
-            std::memcpy(buffer.data, _ddata.depthMap, _ddata.depthMap.size() * 2);
+        boost::mutex::scoped_lock lock(_dmutex);
+        std::memcpy(buffer.data, _ddata.depthMap, _ddata.depthMap.size() * 2);
     }
 
     void DS325::captureAmplitude(cv::Mat& buffer) {
-        std::unique_lock<std::mutex> lock(_dmutex, std::try_to_lock);
-
-
-        if(lock.owns_lock())
-            std::memcpy(buffer.data, _ddata.confidenceMap, _ddata.confidenceMap.size() * 2);
+        boost::mutex::scoped_lock lock(_dmutex);
+        std::memcpy(buffer.data, _ddata.confidenceMap, _ddata.confidenceMap.size() * 2);
     }
 
     void DS325::captureColor(cv::Mat& buffer) {
-        std::unique_lock<std::mutex> lock(_cmutex, std::try_to_lock);
+        boost::mutex::scoped_lock lock(_cmutex);
 
+        if (_compression == COMPRESSION_TYPE_YUY2)
+            buffer = cv::Mat::zeros(_csize, CV_8UC2);
 
-        if(lock.owns_lock()) {
-            if (_compression == COMPRESSION_TYPE_YUY2)
-                buffer = cv::Mat::zeros(_csize, CV_8UC2);
+        std::memcpy(buffer.data, _cdata.colorMap, _cdata.colorMap.size());
 
-            std::memcpy(buffer.data, _cdata.colorMap, _cdata.colorMap.size());
-
-            if (_compression == COMPRESSION_TYPE_YUY2)
-                cv::cvtColor(buffer, buffer, cv::COLOR_YUV2BGR_YUY2);
-        }
-
-        //_cmutex.unlock();
+        if (_compression == COMPRESSION_TYPE_YUY2)
+            cv::cvtColor(buffer, buffer, cv::COLOR_YUV2BGR_YUY2);
     }
 
     void DS325::capturePointCloud(PointCloud::Ptr buffer) {
-        std::unique_lock<std::mutex> lock(_dmutex, std::try_to_lock);
+        boost::mutex::scoped_lock lock(_dmutex);
 
-        if(lock.owns_lock()) {
-            std::size_t index = 0;
-
-            for (auto& point: buffer->points) {
-                auto& f = _ddata.verticesFloatingPoint[index++];
-                point.x = f.x;
-                point.y = f.y;
-                point.z = f.z;
-            }
+        for(int vertex = 0; vertex < depthSize().width * depthSize().height; ++vertex){
+            const DepthSense::FPVertex &f = _ddata.verticesFloatingPoint[vertex];
+            buffer->points.at(vertex).x = f.x;
+            buffer->points.at(vertex).y = f.y;
+            buffer->points.at(vertex).z = f.z;
         }
-
     }
 
     void DS325::captureColoredPointCloud(ColoredPointCloud::Ptr buffer) {
         cv::Mat color = cv::Mat::zeros(_csize, CV_8UC3);
         captureColor(color);
 
-        std::unique_lock<std::mutex> dlock(_dmutex, std::try_to_lock);
+        boost::mutex::scoped_lock lock(_dmutex);
 
-        if(dlock.owns_lock()) {
-            buffer->points.clear();
+        buffer->points.clear();
 
-            // TODO: Segfault occurring here, need to fix!
-            for (size_t i = 0; i < _ddata.verticesFloatingPoint.size(); i++) {
-                auto &f = _ddata.verticesFloatingPoint[i];
-                auto &uv = _ddata.uvMap[i];
+        // TODO: Segfault occurring here, need to fix!
+        for (int i = 0; i < _ddata.verticesFloatingPoint.size(); i++) {
+            // TODO: This needs to be fixed so that we don't use auto (C++0x)
+            const DepthSense::FPVertex &f = _ddata.verticesFloatingPoint[i];
+            //auto &f = _ddata.verticesFloatingPoint[i];
 
-                if (uv.u == -FLT_MAX || uv.v == -FLT_MAX)
-                    continue;
+            const DepthSense::UV &uv = _ddata.uvMap[i];
+            //auto &uv = _ddata.uvMap[i];
 
-                // TODO: More accurate coloring
-                auto &p = color.at<cv::Vec3b>(cvRound(uv.v * _csize.height),
-                        cvRound(uv.u * _csize.width));
-                pcl::PointXYZRGB point;
-                point.x = f.x;
-                point.y = f.y;
-                point.z = f.z;
-                point.b = p[0];
-                point.g = p[1];
-                point.r = p[2];
+            if (uv.u == -FLT_MAX || uv.v == -FLT_MAX)
+                continue;
 
-                buffer->points.push_back(point);
+            // TODO: More accurate coloring
+            int row = static_cast<int> (uv.v * _csize.height);
+            int col = static_cast<int> (uv.u * _csize.width);
+            int pixel = row * _csize.width + col;
+
+            if (pixel < 0 || pixel >= _csize.width * _csize.height) {
+                std::cout << "Pixel (" << col << ", " << row << ") outside bounds of color image." << std::endl;
+                continue;
             }
+
+            cv::Vec3b &p = color.at<cv::Vec3b>(row, col);
+
+            pcl::PointXYZRGB point;
+            point.x = f.x;
+            point.y = f.y;
+            point.z = f.z;
+
+            // TODO: Segfault specifically occurs here!
+            point.b = p[0];
+            point.g = p[1];
+            point.r = p[2];
+
+            buffer->points.push_back(point);
         }
+
     }
 
     void DS325::captureAudio(std::vector<uchar>& buffer) {
-        std::unique_lock<std::mutex> lock(_amutex, std::try_to_lock);
+        boost::mutex::scoped_lock lock(_amutex);
 
-        if(lock.owns_lock()) {
+        buffer.clear();
 
-            buffer.clear();
-
-            for (std::size_t i = 0; i < _adata.audioData.size(); i++)
-                buffer.push_back(_adata.audioData[i]);
-        }
+        for (int i = 0; i < _adata.audioData.size(); i++)
+            buffer.push_back(_adata.audioData[i]);
     }
 
     void DS325::captureAcceleration(cv::Point3f& buffer) {
-        std::unique_lock<std::mutex> lock(_dmutex, std::try_to_lock);
+        boost::mutex::scoped_lock lock(_dmutex);
 
-        if(lock.owns_lock()) {
-            buffer.x = _ddata.acceleration.x;
-            buffer.y = _ddata.acceleration.y;
-            buffer.z = _ddata.acceleration.z;
-        }
+        buffer.x = _ddata.acceleration.x;
+        buffer.y = _ddata.acceleration.y;
+        buffer.z = _ddata.acceleration.z;
     }
 
     void DS325::onDeviceConnected(Context context, Context::DeviceAddedData data) {
@@ -251,11 +232,9 @@ namespace rgbd {
         FrameFormat_toResolution(data.captureConfiguration.frameFormat, &width, &height);
 
         {
-            std::unique_lock<std::mutex> lock(_dmutex, std::try_to_lock);
+            boost::mutex::scoped_lock lock(_dmutex);
 
-            if(lock.owns_lock()) {
-                _ddata = data;
-            }
+            _ddata = data;
         }
     }
 
@@ -265,20 +244,16 @@ namespace rgbd {
         FrameFormat_toResolution(data.captureConfiguration.frameFormat, &width, &height);
 
         {
-            std::unique_lock<std::mutex> lock(_cmutex, std::try_to_lock);
+            boost::mutex::scoped_lock lock(_cmutex);
 
-            if(lock.owns_lock()) {
-                _cdata = data;
-            }
+            _cdata = data;
         }
     }
 
     void DS325::onNewAudioSample(AudioNode node, AudioNode::NewSampleReceivedData data) {
-        std::unique_lock<std::mutex> lock(_amutex, std::try_to_lock);
+        boost::mutex::scoped_lock lock(_amutex);
 
-        if(lock.owns_lock()) {
-            _adata = data;
-        }
+        _adata = data;
     }
 
     void DS325::configureDepthNode(Node node) {
@@ -381,3 +356,5 @@ namespace rgbd {
     }
 
 }
+
+#include "DS325.hpp"

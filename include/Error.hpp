@@ -1,14 +1,15 @@
 #ifndef ERROR_HPP
 #define ERROR_HPP
 
-#include <system_error>
+#include <exception>
 
 namespace rgbd {
 
-    class UnsupportedException: public std::domain_error {
+    class UnsupportedException: public std::exception {
     public:
-        UnsupportedException(const std::string& cause) :
-                std::domain_error(cause + ": unsupported") {}
+        virtual const char* what() const throw() {
+            return "Unsupported, calling virutal method";
+        }
     };
 
 }
