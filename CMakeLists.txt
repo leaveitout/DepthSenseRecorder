@@ -44,9 +44,9 @@ set(CMAKE_CXX_LINK_FLAGS_DEBUG "-pg")
 ADD_DEFINITIONS(${PCL_DEFINITIONS})
 
 set(SOURCE_FILES
-    src/ColorCamera.cpp src/DepthCamera.cpp src/DS325.cpp src/DS325Capture.cpp)
+    #src/ColorCamera.cpp src/DepthCamera.cpp src/DS325.cpp src/DS325Capture.cpp)
     #src/ColorCamera.cpp src/DepthCamera.cpp src/DS325.cpp src/DS325Record.cpp)
-    #src/ColorCamera.cpp src/DepthCamera.cpp src/DS325.cpp src/DS325PlanarSegmentation.cpp)
+    src/ColorCamera.cpp src/DepthCamera.cpp src/DS325.cpp src/DS325PlanarSegmentation.cpp)
 
 set(LIB_EXTERNAL
     ${Boost_LIBRARIES} ${OpenCV_LIBS} ${DEPTHSENSE_LIBRARIES} ${PCL_LIBS})
@@ -63,6 +63,8 @@ add_executable(DepthSenseRecorder ${SOURCE_FILES})
 
 target_link_libraries(DepthSenseRecorder ${LIB_EXTERNAL})
 
+target_link_libraries(DepthSenseRecorder ${PCL_COMMON_LIBRARY})
 target_link_libraries(DepthSenseRecorder ${PCL_VISUALIZATION_LIBRARY})
+target_link_libraries(DepthSenseRecorder ${PCL_SEGMENTATION_LIBRARY})
 
 
