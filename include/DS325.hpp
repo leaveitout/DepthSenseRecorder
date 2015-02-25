@@ -31,6 +31,8 @@ namespace rgbd {
 
         virtual void captureColor(cv::Mat &buffer);
 
+        virtual void captureUV(cv::Mat &buffer);
+
         virtual void capturePointCloud(PointCloud::Ptr buffer);
 
         virtual void captureColoredPointCloud(ColoredPointCloud::Ptr buffer);
